@@ -1,0 +1,2 @@
+IN_DIM = 7
+OUT_DIM = 6

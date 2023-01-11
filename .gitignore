@@ -1,0 +1,12 @@
+.svg
+.ipynb_checkpoints/
+**/__pycache__/
+**/trajectories
+*.swp
+*.txt
+*.gsd
+*.mol2
+*.pdb
+*.log
+.out
+*egg-info
