@@ -11,12 +11,16 @@ class CustomTrajDataset(Dataset):
     def __init__(self, traj_df):
         positions = torch.from_numpy(np.array(list(traj_df['position']))).type(torch.FloatTensor)
         orientations = torch.from_numpy(np.array(list(traj_df['orientation']))).type(torch.FloatTensor)
-        self.x = torch.cat((positions, orientations), 2)
-
         forces = torch.from_numpy(np.array(list(traj_df['net_force']))).type(torch.FloatTensor)
         torques = torch.from_numpy(np.array(list(traj_df['net_torque']))).type(torch.FloatTensor)
 
-        self.y = torch.cat((forces, torques), 2)
+        if len(orientations.shape) == 3:
+            self.x = torch.cat((positions, orientations), 2)
+            self.y = torch.cat((forces, torques), 2)
+        else:
+
+            self.x = torch.cat((positions, orientations), 1)
+            self.y = torch.cat((forces, torques), 1)
 
     def __len__(self):
         return len(self.x)
@@ -25,22 +29,22 @@ class CustomTrajDataset(Dataset):
         return self.x[i], self.y[i]
 
 
-class SynthesizedTrajDataset(Dataset):
-    def __init__(self, traj_df):
-        positions = torch.from_numpy(np.array(list(traj_df['position']))).type(torch.FloatTensor)
-        orientations = torch.from_numpy(np.array(list(traj_df['orientation']))).type(torch.FloatTensor)
-        self.x = torch.cat((positions, orientations), 1)
-
-        forces = torch.from_numpy(np.array(list(traj_df['net_force']))).type(torch.FloatTensor)
-        torques = torch.from_numpy(np.array(list(traj_df['net_torque']))).type(torch.FloatTensor)
-
-        self.y = torch.cat((forces, torques), 1)
-
-    def __len__(self):
-        return len(self.x)
-
-    def __getitem__(self, i):
-        return self.x[i], self.y[i]
+# class SynthesizedTrajDataset(Dataset):
+#     def __init__(self, traj_df):
+#         positions = torch.from_numpy(np.array(list(traj_df['position']))).type(torch.FloatTensor)
+#         orientations = torch.from_numpy(np.array(list(traj_df['orientation']))).type(torch.FloatTensor)
+#         self.x = torch.cat((positions, orientations), 1)
+#
+#         forces = torch.from_numpy(np.array(list(traj_df['net_force']))).type(torch.FloatTensor)
+#         torques = torch.from_numpy(np.array(list(traj_df['net_torque']))).type(torch.FloatTensor)
+#
+#         self.y = torch.cat((forces, torques), 1)
+#
+#     def __len__(self):
+#         return len(self.x)
+#
+#     def __getitem__(self, i):
+#         return self.x[i], self.y[i]
 
 
 def _get_data_loader(dataset, batch_size, shuffle=True):
@@ -49,12 +53,12 @@ def _get_data_loader(dataset, batch_size, shuffle=True):
 
 
 def load_datasets(data_path, batch_size):
-    train_df = pd.read_pickle(os.path.join(data_path, 'train.pkl'))[:20]
+    train_df = pd.read_pickle(os.path.join(data_path, 'train.pkl'))
     val_df = pd.read_pickle(os.path.join(data_path, 'val.pkl'))
     test_df = pd.read_pickle(os.path.join(data_path, 'test.pkl'))
-    train_dataset = SynthesizedTrajDataset(train_df)
-    valid_dataset = SynthesizedTrajDataset(val_df)
-    test_dataset = SynthesizedTrajDataset(test_df)
+    train_dataset = CustomTrajDataset(train_df)
+    valid_dataset = CustomTrajDataset(val_df)
+    test_dataset = CustomTrajDataset(test_df)
 
     train_dataloader = _get_data_loader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
     valid_dataloader = _get_data_loader(dataset=valid_dataset, batch_size=batch_size, shuffle=True)
