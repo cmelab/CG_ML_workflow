@@ -7,7 +7,7 @@ import torch.nn as nn
 import wandb
 import numpy as np
 import constants
-from data_loader import load_datasets, get_target_stats
+from data_loader import load_datasets
 from model import NN
 from utils import syn_calculate_error_sum, syn_calculate_error
 
@@ -17,7 +17,7 @@ def get_parameters():
 
     # input & output data params
     parser.add_argument('-data_path',
-                        default='/home/marjanalbooyeh/code/cme-lab/ML_datasets/pps_synthesized_Jan30/processed_unnormalized/',
+                        default='/home/marjanalbooyeh/code/cme-lab/ML_datasets/pps_synthesized_Feb15/processed_unnormalized/',
                         type=str, help="path to data")
     parser.add_argument('-log_dir', default='/home/marjanalbooyeh/logs/ML/', type=str, help="path to log data")
     parser.add_argument('-project', default='NN_synthesized_data_v2', type=str, help="w&b project name")
@@ -119,7 +119,7 @@ def run(config, log_path, model_path):
     train_dataloader, valid_dataloader, test_dataloader = load_datasets(args.data_path, config["batch_size"])
     print('Dataset size: \n\t train: {}, \n\t valid: {}, \n\t test:{}'.
           format(len(train_dataloader), len(valid_dataloader), len(test_dataloader)))
-    target_stats = get_target_stats(args.data_path)
+    # target_stats = get_target_stats(args.data_path)
 
 
     # build model
@@ -154,7 +154,7 @@ def run(config, log_path, model_path):
         # epoch_val_losses.append(valid_loss)
         # val_error = val_force_error + val_torque_error
         # epoch_val_errors.append(val_error)
-        scheduler.step(val_error)
+        # scheduler.step(val_error)
         print('epoch {}/{}: \n\t train_loss: {}, \n\t val_loss: {}, \n\t train_error: {}, \n\t val_error: {}'.
                       format(epoch + 1, args.epochs, train_loss, valid_loss, train_error, val_error))
         # if epoch % 20 == 0:
@@ -172,7 +172,7 @@ def run(config, log_path, model_path):
 
         if val_error <= best_val_error:
             best_val_error = val_error
-            best_model_path = os.path.join(model_path, 'best_model.chkpnt')
+            best_model_path = os.path.join(model_path, 'best_model.pth')
             torch.save(model.state_dict(), best_model_path)
             # wandb.save(best_model_path)
             print('#################################################################')
@@ -267,7 +267,7 @@ if __name__ == '__main__':
     print(config)
 
     if args.mode == "single":
-        wandb.init(project=args.project, group="single_run", tags=["NN", "synthesized"], dir=log_path,
+        wandb.init(project=args.project, group="distance_run", tags=["NN", "synthesized"], dir=log_path,
                    config=config)
         run(config, log_path, model_path)
     else:

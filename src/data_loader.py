@@ -13,13 +13,14 @@ class CustomTrajDataset(Dataset):
         orientations = torch.from_numpy(np.array(list(traj_df['orientation']))).type(torch.FloatTensor)
         forces = torch.from_numpy(np.array(list(traj_df['net_force']))).type(torch.FloatTensor)
         torques = torch.from_numpy(np.array(list(traj_df['net_torque']))).type(torch.FloatTensor)
+        distances = torch.from_numpy(np.array(list(traj_df['distances']))).type(torch.FloatTensor)
+        distances = distances[:, None]
 
         if len(orientations.shape) == 3:
-            self.x = torch.cat((positions, orientations), 2)
+            self.x = torch.cat((positions, orientations, distances), 2)
             self.y = torch.cat((forces, torques), 2)
         else:
-
-            self.x = torch.cat((positions, orientations), 1)
+            self.x = torch.cat((positions, orientations, distances), 1)
             self.y = torch.cat((forces, torques), 1)
 
     def __len__(self):
@@ -66,8 +67,8 @@ def load_datasets(data_path, batch_size):
 
     return train_dataloader, valid_dataloader, test_dataloader
 
-
-def get_target_stats(data_path):
-    with open(os.path.join(data_path, 'stats.pkl'), 'rb') as fp:
-        target_stats = pickle.load(fp)
-    return target_stats
+#
+# def get_target_stats(data_path):
+#     with open(os.path.join(data_path, 'stats.pkl'), 'rb') as fp:
+#         target_stats = pickle.load(fp)
+#     return target_stats

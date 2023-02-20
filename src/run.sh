@@ -8,4 +8,4 @@
 
 conda activate polybinder
 
-python run.py -lr 0.01 -batch 64 -hidden_dim 64 -epochs 10000 -n_layer 3 -mode "sweep" -project "NN_synthesized_Jan30"
+python run.py -lr 0.01 -batch 32 -hidden_dim 256 -epochs 3000 -n_layer 3 -mode "single" -project "NN_synthesized_orientation"
