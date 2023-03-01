@@ -8,4 +8,4 @@
 
 conda activate polybinder
 
-python run.py -lr 0.01 -batch 32 -hidden_dim 256 -epochs 3000 -n_layer 3 -mode "single" -project "NN_synthesized_orientation"
+python run.py -lr 0.01 -batch 64 -hidden_dim 64 -epochs 20000 -n_layer 2 -mode "single" -notes "appended input: [rel_pos, r, riemann_log_map, sym_intrinsic_distance], dataset: 1 data per particle"

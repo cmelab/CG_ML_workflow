@@ -1,5 +1,4 @@
 import os
-import pickle
 
 import numpy as np
 import pandas as pd
@@ -13,39 +12,16 @@ class CustomTrajDataset(Dataset):
         orientations = torch.from_numpy(np.array(list(traj_df['orientation']))).type(torch.FloatTensor)
         forces = torch.from_numpy(np.array(list(traj_df['net_force']))).type(torch.FloatTensor)
         torques = torch.from_numpy(np.array(list(traj_df['net_torque']))).type(torch.FloatTensor)
-        distances = torch.from_numpy(np.array(list(traj_df['distances']))).type(torch.FloatTensor)
-        distances = distances[:, None]
 
-        if len(orientations.shape) == 3:
-            self.x = torch.cat((positions, orientations, distances), 2)
-            self.y = torch.cat((forces, torques), 2)
-        else:
-            self.x = torch.cat((positions, orientations, distances), 1)
-            self.y = torch.cat((forces, torques), 1)
+        self.input = torch.cat((positions, orientations), 2)
+        self.forces = forces
+        self.torques = torques
 
     def __len__(self):
-        return len(self.x)
+        return len(self.input)
 
     def __getitem__(self, i):
-        return self.x[i], self.y[i]
-
-
-# class SynthesizedTrajDataset(Dataset):
-#     def __init__(self, traj_df):
-#         positions = torch.from_numpy(np.array(list(traj_df['position']))).type(torch.FloatTensor)
-#         orientations = torch.from_numpy(np.array(list(traj_df['orientation']))).type(torch.FloatTensor)
-#         self.x = torch.cat((positions, orientations), 1)
-#
-#         forces = torch.from_numpy(np.array(list(traj_df['net_force']))).type(torch.FloatTensor)
-#         torques = torch.from_numpy(np.array(list(traj_df['net_torque']))).type(torch.FloatTensor)
-#
-#         self.y = torch.cat((forces, torques), 1)
-#
-#     def __len__(self):
-#         return len(self.x)
-#
-#     def __getitem__(self, i):
-#         return self.x[i], self.y[i]
+        return self.input[i], self.forces[i], self.torques[i]
 
 
 def _get_data_loader(dataset, batch_size, shuffle=True):
@@ -66,9 +42,3 @@ def load_datasets(data_path, batch_size):
     test_dataloader = _get_data_loader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
 
     return train_dataloader, valid_dataloader, test_dataloader
-
-#
-# def get_target_stats(data_path):
-#     with open(os.path.join(data_path, 'stats.pkl'), 'rb') as fp:
-#         target_stats = pickle.load(fp)
-#     return target_stats

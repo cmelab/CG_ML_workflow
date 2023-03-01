@@ -17,21 +17,23 @@ def get_parameters():
 
     # input & output data params
     parser.add_argument('-data_path',
-                        default='/home/marjanalbooyeh/code/cme-lab/ML_datasets/pps_synthesized_Feb15/processed_unnormalized/',
+                        default='/home/marjanalbooyeh/logs/datasets/pps_two_synthesized/',
                         type=str, help="path to data")
     parser.add_argument('-log_dir', default='/home/marjanalbooyeh/logs/ML/', type=str, help="path to log data")
-    parser.add_argument('-project', default='NN_synthesized_data_v2', type=str, help="w&b project name")
+    parser.add_argument('-project', default='NN_synthesized_March1', type=str, help="w&b project name")
+    parser.add_argument('-name', default='', type=str, help="w&b run name")
+    parser.add_argument('-notes', default='', type=str, help="w&b run note")
 
     # ML hyper params
     parser.add_argument('-lr', default=0.01, type=float, help="learning rate")
     parser.add_argument('-decay', default=0.001, type=float, help="weight decay (L2 reg)")
     parser.add_argument('-batch', default=64, type=int, help="batch size")
     parser.add_argument('-hidden_dim', default=64, type=int, help="number of hidden dims")
-    parser.add_argument('-n_layer', default=4, type=int, help="number of layers")
+    parser.add_argument('-n_layer', default=2, type=int, help="number of layers")
     parser.add_argument('-optim', default="SGD", type=str, help="optimizer")
 
     # Run params
-    parser.add_argument('-epochs', default=10000, type=int, help="number of epochs")
+    parser.add_argument('-epochs', default=50000, type=int, help="number of epochs")
     parser.add_argument('-mode', default="single", type=str, help="run mode: single or sweep")
     args = parser.parse_args()
     return args
@@ -43,7 +45,8 @@ def create_config(args):
         "lr": args.lr,
         "hidden_dim": args.hidden_dim,
         "n_layer": args.n_layer,
-        "optim": args.optim
+        "optim": args.optim,
+        "decay": args.decay
     }
     return config
 
@@ -51,19 +54,11 @@ def create_config(args):
 def train(model, data_loader, optimizer, mse_loss, device, criteria):
     model.train()
     train_loss = 0.
-    train_force_error = 0.
-    train_torque_error = 0.
     error = 0.
-    for i, (feature_tensor, target_tensor) in enumerate(data_loader):
-        feature_tensor = feature_tensor.to(device)
-        target_tensor = target_tensor.to(device)
-        if len(target_tensor.shape) == 3:
-            target_force = target_tensor[:, :, :3]
-            target_torque = target_tensor[:, :, 3:]
-        else:
-            target_force = target_tensor[:, :3]
-            target_torque = target_tensor[:, 3:]
-
+    for i, (input, target_force, target_torque) in enumerate(data_loader):
+        feature_tensor = input.to(device)
+        target_force = target_force.to(device)
+        target_torque = target_torque.to(device)
         optimizer.zero_grad()
         force_prediction, torque_prediction = model(feature_tensor)
         force_loss = mse_loss(force_prediction, target_force)
@@ -73,14 +68,11 @@ def train(model, data_loader, optimizer, mse_loss, device, criteria):
         torque_error = criteria(torque_prediction, target_torque).item()
         error += force_error + torque_error
         train_loss += loss.item()
-        # force_error, torque_error = syn_calculate_error(prediction, target_tensor, target_stats, device)
-        # train_force_error += force_error
-        # train_torque_error += torque_error
         loss.backward()
         optimizer.step()
     train_loss = train_loss / len(data_loader)
 
-    return train_loss, error/len(data_loader)
+    return train_loss, error / len(data_loader)
 
 
 def validation(model, data_loader, mse_loss, device, criteria):
@@ -90,15 +82,10 @@ def validation(model, data_loader, mse_loss, device, criteria):
         valid_force_error = 0.
         valid_torque_error = 0.
         error = 0.
-        for i, (feature_tensor, target_tensor) in enumerate(data_loader):
-            feature_tensor = feature_tensor.to(device)
-            target_tensor = target_tensor.to(device)
-            if len(target_tensor.shape) == 3:
-                target_force = target_tensor[:, :, :3]
-                target_torque = target_tensor[:,:,  3:]
-            else:
-                target_force = target_tensor[:, :3]
-                target_torque = target_tensor[:, 3:]
+        for i, (input, target_force, target_torque) in enumerate(data_loader):
+            feature_tensor = input.to(device)
+            target_force = target_force.to(device)
+            target_torque = target_torque.to(device)
 
             force_prediction, torque_prediction = model(feature_tensor)
             force_loss = mse_loss(force_prediction, target_force)
@@ -108,64 +95,52 @@ def validation(model, data_loader, mse_loss, device, criteria):
             force_error = criteria(force_prediction, target_force).item()
             torque_error = criteria(torque_prediction, target_torque).item()
             error += force_error + torque_error
-            # force_error, torque_error = syn_calculate_error(prediction, target_tensor, target_stats, device)
-            # valid_force_error += force_error
-            # valid_torque_error += torque_error
+
         return valid_loss / len(data_loader), error / len(data_loader)
 
 
-def run(config, log_path, model_path):
+def run(config, model_path):
     # Load datasets
     train_dataloader, valid_dataloader, test_dataloader = load_datasets(args.data_path, config["batch_size"])
     print('Dataset size: \n\t train: {}, \n\t valid: {}, \n\t test:{}'.
           format(len(train_dataloader), len(valid_dataloader), len(test_dataloader)))
-    # target_stats = get_target_stats(args.data_path)
-
 
     # build model
-    model = NN(in_dim=constants.IN_DIM, hidden_dim=config["hidden_dim"], out_dim=constants.OUT_DIM, n_layers=config["n_layer"])
+    model = NN(in_dim=constants.IN_DIM, hidden_dim=config["hidden_dim"], out_dim=constants.OUT_DIM,
+               n_layers=config["n_layer"])
     model.to(device)
 
-
-    mse_loss = nn.L1Loss().to(device)
+    loss = nn.L1Loss().to(device)
     criteria = nn.L1Loss().to(device)
     if config["optim"] == "Adam":
         optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"], weight_decay=config["decay"])
     if config["optim"] == "SGD":
         optimizer = torch.optim.SGD(model.parameters(), lr=config["lr"], momentum=0.9, weight_decay=1e-4)
 
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.7, patience=100, min_lr=0.001)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.9, patience=100, min_lr=0.01)
 
-
-    wandb.watch(models=model, criterion=mse_loss, log="all")
+    wandb.watch(models=model, criterion=loss, log="all")
 
     # Train
     print('**************************Training*******************************')
     best_val_error = None
     best_model_path = None
     epoch_train_losses = []
-    epoch_val_losses = []
-    epoch_val_errors = []
+
     for epoch in range(args.epochs):
 
-        train_loss, train_error = train(model, train_dataloader, optimizer, mse_loss, device, criteria)
+        train_loss, train_error = train(model, train_dataloader, optimizer, loss, device, criteria)
         epoch_train_losses.append(train_loss)
-        valid_loss, val_error = validation(model, valid_dataloader, mse_loss, device, criteria)
-        # epoch_val_losses.append(valid_loss)
-        # val_error = val_force_error + val_torque_error
-        # epoch_val_errors.append(val_error)
-        # scheduler.step(val_error)
-        print('epoch {}/{}: \n\t train_loss: {}, \n\t val_loss: {}, \n\t train_error: {}, \n\t val_error: {}'.
-                      format(epoch + 1, args.epochs, train_loss, valid_loss, train_error, val_error))
-        # if epoch % 20 == 0:
-        #         print('epoch {}/{}: \n\t train_loss: {}, \n\t valid_loss: {}, \n\t val_error: {}, \n\t val_force_error: {}, \n \t val_torque_error: {}'.
-        #               format(epoch + 1, args.epochs, train_loss, valid_loss, val_error, val_force_error, val_torque_error))
+        valid_loss, val_error = validation(model, valid_dataloader, loss, device, criteria)
+        scheduler.step(val_error)
+        if epoch % 20 == 0:
+            print('epoch {}/{}: \n\t train_loss: {}, \n\t val_loss: {}, \n\t train_error: {}, \n\t val_error: {}'.
+                  format(epoch + 1, args.epochs, train_loss, valid_loss, train_error, val_error))
         wandb.log({'train_loss': train_loss,
                    'train_error': train_error,
                    'valid loss': valid_loss,
                    'valid error': val_error,
                    "learning rate": optimizer.param_groups[0]['lr']})
-
 
         if best_val_error is None:
             best_val_error = val_error
@@ -178,22 +153,23 @@ def run(config, log_path, model_path):
             print('#################################################################')
             print('best_val_error: {}, best_epoch: {}'.format(best_val_error, epoch))
             print('#################################################################')
-            # wandb.log({'best_epoch': epoch + 1,
-            #            'best val error': best_val_error})
-
+            wandb.run.summary["best_epoch"] = epoch + 1
+            wandb.run.summary["best_val_error"] = best_val_error
 
     # Testing
     print('**************************Testing*******************************')
     if best_model_path:
-        model = NN(in_dim=constants.IN_DIM, hidden_dim=config["hidden_dim"], out_dim=constants.OUT_DIM, n_layers=config["n_layer"])
+        model = NN(in_dim=constants.IN_DIM, hidden_dim=config["hidden_dim"], out_dim=constants.OUT_DIM,
+                   n_layers=config["n_layer"])
         model.to(device)
         model.load_state_dict(torch.load(best_model_path, map_location=device))
 
-    test_loss, test_error= validation(model, test_dataloader, mse_loss, device, criteria)
+    test_loss, test_error = validation(model, test_dataloader, loss, device, criteria)
     print('Testing \n\t test error: {}'.
           format(test_error))
 
-    wandb.log({'test error': test_error})
+    wandb.run.summary['test error'] = test_error
+
 
 def run_sweep(project):
     sweep_config = {
@@ -233,6 +209,7 @@ def run_sweep(project):
 
     wandb.agent(sweep_id, function=_main_sweep)
 
+
 def _main_sweep(config=None):
     with wandb.init(config=None):
         config = wandb.config
@@ -264,11 +241,14 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(args)
     config = create_config(args)
+    config["log_path"] = log_path
+    config["dataset"] = args.data_path
     print(config)
 
     if args.mode == "single":
-        wandb.init(project=args.project, group="distance_run", tags=["NN", "synthesized"], dir=log_path,
+        wandb.init(project=args.project, notes=args.notes, group="two_pps",
+                   tags=["append_input"], dir=log_path,
                    config=config)
-        run(config, log_path, model_path)
+        run(config, model_path)
     else:
         run_sweep(args.project)
