@@ -5,11 +5,10 @@ from datetime import datetime
 import torch
 import torch.nn as nn
 import wandb
-import numpy as np
+
 import constants
 from data_loader import load_datasets
 from model import NN
-from utils import syn_calculate_error_sum, syn_calculate_error
 
 
 def get_parameters():
@@ -17,12 +16,13 @@ def get_parameters():
 
     # input & output data params
     parser.add_argument('-data_path',
-                        default='/home/marjanalbooyeh/logs/datasets/pps_two_synthesized/',
+                        default='/home/marjanalbooyeh/logs/datasets/pps_two_synthesized/neighbors/',
                         type=str, help="path to data")
     parser.add_argument('-log_dir', default='/home/marjanalbooyeh/logs/ML/', type=str, help="path to log data")
     parser.add_argument('-project', default='NN_synthesized_March1', type=str, help="w&b project name")
-    parser.add_argument('-name', default='', type=str, help="w&b run name")
+    parser.add_argument('-group', default='two_pps', type=str, help="w&b run group")
     parser.add_argument('-notes', default='', type=str, help="w&b run note")
+    parser.add_argument('-inp_mode', default='append', type=str, help="input data mode: append or stack")
 
     # ML hyper params
     parser.add_argument('-lr', default=0.01, type=float, help="learning rate")
@@ -31,6 +31,7 @@ def get_parameters():
     parser.add_argument('-hidden_dim', default=64, type=int, help="number of hidden dims")
     parser.add_argument('-n_layer', default=2, type=int, help="number of layers")
     parser.add_argument('-optim', default="SGD", type=str, help="optimizer")
+    parser.add_argument('-act_fn', default="Tanh", type=str, help="activation func")
 
     # Run params
     parser.add_argument('-epochs', default=50000, type=int, help="number of epochs")
@@ -46,7 +47,8 @@ def create_config(args):
         "hidden_dim": args.hidden_dim,
         "n_layer": args.n_layer,
         "optim": args.optim,
-        "decay": args.decay
+        "decay": args.decay,
+        "act_fn": args.act_fn
     }
     return config
 
@@ -101,13 +103,17 @@ def validation(model, data_loader, mse_loss, device, criteria):
 
 def run(config, model_path):
     # Load datasets
-    train_dataloader, valid_dataloader, test_dataloader = load_datasets(args.data_path, config["batch_size"])
+    train_dataloader, valid_dataloader, test_dataloader = load_datasets(args.data_path, config["batch_size"],
+                                                                        inp_mode=config["inp_mode"])
     print('Dataset size: \n\t train: {}, \n\t valid: {}, \n\t test:{}'.
           format(len(train_dataloader), len(valid_dataloader), len(test_dataloader)))
+    in_dim = train_dataloader.dataset.in_dim
+    wandb.run.summary["input_dim"] = in_dim
 
     # build model
-    model = NN(in_dim=constants.IN_DIM, hidden_dim=config["hidden_dim"], out_dim=constants.OUT_DIM,
-               n_layers=config["n_layer"])
+    model = NN(in_dim=in_dim, hidden_dim=config["hidden_dim"], out_dim=constants.OUT_DIM,
+               n_layers=config["n_layer"], act_fn=config["act_fn"], mode=config["inp_mode"])
+    print(model)
     model.to(device)
 
     loss = nn.L1Loss().to(device)
@@ -117,7 +123,7 @@ def run(config, model_path):
     if config["optim"] == "SGD":
         optimizer = torch.optim.SGD(model.parameters(), lr=config["lr"], momentum=0.9, weight_decay=1e-4)
 
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.9, patience=100, min_lr=0.01)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.9, patience=50, min_lr=0.01)
 
     wandb.watch(models=model, criterion=loss, log="all")
 
@@ -132,7 +138,7 @@ def run(config, model_path):
         train_loss, train_error = train(model, train_dataloader, optimizer, loss, device, criteria)
         epoch_train_losses.append(train_loss)
         valid_loss, val_error = validation(model, valid_dataloader, loss, device, criteria)
-        scheduler.step(val_error)
+        # scheduler.step(val_error)
         if epoch % 20 == 0:
             print('epoch {}/{}: \n\t train_loss: {}, \n\t val_loss: {}, \n\t train_error: {}, \n\t val_error: {}'.
                   format(epoch + 1, args.epochs, train_loss, valid_loss, train_error, val_error))
@@ -159,8 +165,8 @@ def run(config, model_path):
     # Testing
     print('**************************Testing*******************************')
     if best_model_path:
-        model = NN(in_dim=constants.IN_DIM, hidden_dim=config["hidden_dim"], out_dim=constants.OUT_DIM,
-                   n_layers=config["n_layer"])
+        model = NN(in_dim=in_dim, hidden_dim=config["hidden_dim"], out_dim=constants.OUT_DIM,
+                   n_layers=config["n_layer"], act_fn=config["act_fn"], mode=config["inp_mode"])
         model.to(device)
         model.load_state_dict(torch.load(best_model_path, map_location=device))
 
@@ -223,7 +229,7 @@ def _main_sweep(config=None):
         model_path = os.path.join(log_path, "model")
         if not os.path.exists(model_path):
             os.mkdir(model_path)
-        run(config, log_path, model_path)
+        run(config, model_path)
 
 
 if __name__ == '__main__':
@@ -243,10 +249,11 @@ if __name__ == '__main__':
     config = create_config(args)
     config["log_path"] = log_path
     config["dataset"] = args.data_path
+    config["inp_mode"] = args.inp_mode
     print(config)
 
     if args.mode == "single":
-        wandb.init(project=args.project, notes=args.notes, group="two_pps",
+        wandb.init(project=args.project, notes=args.notes, group=args.group,
                    tags=["append_input"], dir=log_path,
                    config=config)
         run(config, model_path)

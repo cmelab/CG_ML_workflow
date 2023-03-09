@@ -2,13 +2,14 @@ import torch.nn as nn
 
 
 class NN(nn.Module):
-    def __init__(self, in_dim, hidden_dim, out_dim, n_layers, act_fn="ReLU"):
+    def __init__(self, in_dim, hidden_dim, out_dim, n_layers, act_fn="ReLU", mode="append"):
         super(NN, self).__init__()
         self.in_dim = in_dim
         self.hidden_dim = hidden_dim
         self.out_dim = out_dim
         self.n_layers = n_layers
         self.act_fn = act_fn
+        self.mode = mode
 
         self.force_net = nn.Sequential(*self._get_net())
         self.torque_net = nn.Sequential(*self._get_net())
@@ -27,4 +28,9 @@ class NN(nn.Module):
         return layers
 
     def forward(self, x):
-        return self.force_net(x), self.torque_net(x)
+        force = self.force_net(x)
+        torque = self.torque_net(x)
+        if self.mode == "stack":
+            force = force.mean(dim=-2)
+            torque = torque.mean(dim=-2)
+        return force, torque

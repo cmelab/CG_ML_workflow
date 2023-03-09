@@ -17,13 +17,15 @@ def get_parameters():
 
     # input & output data params
     parser.add_argument('-data_path',
-                        default='/home/marjanalbooyeh/code/cme-lab/ML_datasets/pps_rigid_Feb22_2/processed/',
+                        default='/home/marjanalbooyeh/logs/datasets/pps_two_synthesized/',
                         type=str, help="path to data")
-    parser.add_argument('-model_path', default='/home/marjanalbooyeh/logs/ML/2023-02-22 16:12:51/model/best_model.pth', type=str, help="path to log data")
+    parser.add_argument('-model_path', default='/home/marjanalbooyeh/logs/ML/2023-03-01 15:18:04/model/best_model.pth', type=str, help="path to log data")
     # ML hyper params
     parser.add_argument('-batch', default=64, type=int, help="batch size")
-    parser.add_argument('-hidden_dim', default=128, type=int, help="number of hidden dims")
-    parser.add_argument('-n_layer', default=3, type=int, help="number of layers")
+    parser.add_argument('-hidden_dim', default=64, type=int, help="number of hidden dims")
+    parser.add_argument('-n_layer', default=2, type=int, help="number of layers")
+    parser.add_argument('-inp_mode', default='append', type=str, help="input data mode: append or stack")
+    parser.add_argument('-act_fn', default="ReLU", type=str, help="activation func")
 
     args = parser.parse_args()
     return args
@@ -33,7 +35,9 @@ def create_config(args):
         "batch_size": args.batch,
         "hidden_dim": args.hidden_dim,
         "n_layer": args.n_layer,
-        "model_path": args.model_path
+        "model_path": args.model_path,
+        "act_fn" : args.act_fn,
+        "inp_mode": args.inp_mode
     }
     return config
 
@@ -65,19 +69,18 @@ def validation(model, data_loader, device, criteria):
 
 def run(config, device):
     # Load datasets
-    train_dataloader, valid_dataloader, test_dataloader = load_datasets(args.data_path, config["batch_size"])
+    train_dataloader, valid_dataloader, test_dataloader = load_datasets(args.data_path, config["batch_size"], inp_mode=config["inp_mode"])
     print('Dataset size: \n\t train: {}, \n\t valid: {}, \n\t test:{}'.
           format(len(train_dataloader), len(valid_dataloader), len(test_dataloader)))
 
 
     # build model
-    model = NN(in_dim=constants.IN_DIM, hidden_dim=config["hidden_dim"], out_dim=constants.OUT_DIM, n_layers=config["n_layer"])
+    model = NN(in_dim=test_dataloader.dataset.in_dim, hidden_dim=config["hidden_dim"], out_dim=constants.OUT_DIM, n_layers=config["n_layer"], act_fn=config["act_fn"])
     model.to(device)
 
     criteria = nn.L1Loss().to(device)
     # Testing
     print('**************************Testing*******************************')
-
 
     model.load_state_dict(torch.load(config["model_path"], map_location=device))
 

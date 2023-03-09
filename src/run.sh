@@ -1,5 +1,6 @@
 #!/bin/bash -l
 
+#SBATCH --job-name=stack-lr01
 #SBATCH -N 1
 #SBATCH -n 1
 
@@ -8,4 +9,7 @@
 
 conda activate polybinder
 
-python run.py -lr 0.01 -batch 64 -hidden_dim 64 -epochs 20000 -n_layer 2 -mode "single" -notes "appended input: [rel_pos, r, riemann_log_map, sym_intrinsic_distance], dataset: 1 data per particle"
+python run.py -lr 0.1 -batch 128 -hidden_dim 64 -epochs 10000 -n_layer 3 -act_fn "Tanh" -mode "single" \
+ -notes "stacked input: [[rel_pos, r], [riemann_log_map]], dataset (neighbors) 1 data for two particle" \
+ -inp_mode "stack"
+
