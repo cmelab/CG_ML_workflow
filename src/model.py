@@ -30,7 +30,12 @@ class NN(nn.Module):
     def forward(self, x):
         force = self.force_net(x)
         torque = self.torque_net(x)
+
         if self.mode == "stack":
             force = force.mean(dim=-2)
             torque = torque.mean(dim=-2)
+
+        # sum over all neighbor particle contributions for each particle
+        force = force.sum(dim=-2)
+        torque = torque.sum(dim=-2)
         return force, torque

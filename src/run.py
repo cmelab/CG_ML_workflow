@@ -9,7 +9,7 @@ import wandb
 import constants
 from data_loader import load_datasets
 from model import NN
-
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def get_parameters():
     parser = argparse.ArgumentParser()
@@ -109,6 +109,10 @@ def run(config, model_path):
           format(len(train_dataloader), len(valid_dataloader), len(test_dataloader)))
     in_dim = train_dataloader.dataset.in_dim
     wandb.run.summary["input_dim"] = in_dim
+    wandb.run.summary["model_path"] = model_path
+    wandb.run.summary["data_path"] = args.data_path
+    wandb.run.summary["notes"] = args.notes
+
 
     # build model
     model = NN(in_dim=in_dim, hidden_dim=config["hidden_dim"], out_dim=constants.OUT_DIM,
@@ -121,7 +125,7 @@ def run(config, model_path):
     if config["optim"] == "Adam":
         optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"], weight_decay=config["decay"])
     if config["optim"] == "SGD":
-        optimizer = torch.optim.SGD(model.parameters(), lr=config["lr"], momentum=0.9, weight_decay=1e-4)
+        optimizer = torch.optim.SGD(model.parameters(), lr=config["lr"], momentum=0.9, weight_decay=config["decay"])
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.9, patience=50, min_lr=0.01)
 
@@ -177,20 +181,20 @@ def run(config, model_path):
     wandb.run.summary['test error'] = test_error
 
 
-def run_sweep(project):
+def run_sweep(project, name):
     sweep_config = {
-        "name": "synthesized-sweep",
-        "method": "grid",
-        "metric": {"goal": "minimize", "name": "test error"},
+        "name": name,
+        "method": "bayes",
+        "metric": {"goal": "minimize", "name": "valid loss"},
         "parameters": {
             # dataset parameters
             "batch_size": {
-                "values": [32, 64]
+                "values": [64, 128, 256]
             },
 
             # model parameters
             "hidden_dim": {
-                "values": [64, 128, 256]
+                "values": [32, 64, 128, 256]
             },
             "n_layer": {
                 "values": [3, 4, 5]
@@ -201,13 +205,16 @@ def run_sweep(project):
 
             # optimizer parameters
             "optim": {
-                "values": ["SGD"]
+                "values": ["SGD", "Adam"]
             },
             "lr": {
-                "values": [0.01]
+                "values": [0.1, 0.01]
             },
             "decay": {
-                "values": [0.1, 0.01]
+                "values": [0.001, 0.01]
+            },
+            "inp_mode": {
+                "values": ["append", "stack"]
             }
         }
     }
@@ -235,27 +242,28 @@ def _main_sweep(config=None):
 if __name__ == '__main__':
 
     args = get_parameters()
-    now = datetime.now()
-    log_path = os.path.join(args.log_dir, now.strftime("%Y-%m-%d %H:%M:%S"))
-    print('Log path: ', log_path)
-    if not os.path.exists(log_path):
-        os.mkdir(log_path)
-
-    model_path = os.path.join(log_path, "model")
-    if not os.path.exists(model_path):
-        os.mkdir(model_path)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print(args)
-    config = create_config(args)
-    config["log_path"] = log_path
-    config["dataset"] = args.data_path
-    config["inp_mode"] = args.inp_mode
-    print(config)
 
     if args.mode == "single":
+        now = datetime.now()
+        log_path = os.path.join(args.log_dir, now.strftime("%Y-%m-%d %H:%M:%S"))
+        print('Log path: ', log_path)
+        if not os.path.exists(log_path):
+            os.mkdir(log_path)
+
+        model_path = os.path.join(log_path, "model")
+        if not os.path.exists(model_path):
+            os.mkdir(model_path)
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        print(args)
+        config = create_config(args)
+        config["log_path"] = log_path
+        config["dataset"] = args.data_path
+        config["inp_mode"] = args.inp_mode
+        print(config)
         wandb.init(project=args.project, notes=args.notes, group=args.group,
                    tags=["append_input"], dir=log_path,
                    config=config)
         run(config, model_path)
     else:
-        run_sweep(args.project)
+        run_sweep(args.project, args.group)
+
