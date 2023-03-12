@@ -22,28 +22,28 @@ def get_parameters():
     # project parameters
     parameters["log_dir"] = ["/home/marjanalbooyeh/logs/ML/"]
     parameters["project"] = ["NN_multi_PPS"]
-    parameters["group"] = ["10_pps"]
-    parameters["notes"] = ["multi N=10, appended input, neighbors in one row"]
+    parameters["group"] = ["5_pps"]
+    parameters["notes"] = ["multi N=5, neighbors in one row"]
     parameters["tags"] = [["PPS", "NN"]]
 
     # dataset parameters
     parameters["data_path"] = ["/home/marjanalbooyeh/logs/pps_rigid/2023-03-09-18:47:47/dataset"]
-    parameters["inp_mode"] = ["append", "stack"]
-    parameters["batch"] = [64, 128, 256]
+    parameters["inp_mode"] = ["stack", "append"]
+    parameters["batch_size"] = [64, 256]
 
     # model parameters
-    parameters["hidden_dim"] = [16, 32, 64, 128]
-    parameters["n_layer"] = [2, 3, 4]
-    parameters["act_fn"] = ["ReLU", "Tanh"]
-    parameters["dropout"] = [0.3, 0.7]
+    parameters["hidden_dim"] = [64, 128]
+    parameters["n_layer"] = [2, 3]
+    parameters["act_fn"] = ["Tanh"]
+    parameters["dropout"] = [0.7]
 
     # optimizer parameters
-    parameters["optim"] = ["optim", "Adam"]
-    parameters["lr"] = [0.1, 0.01]
-    parameters["decay"] = [0.01, 0.0001]
+    parameters["optim"] = ["SGD", "Adam"]
+    parameters["lr"] = [0.01]
+    parameters["decay"] = [0.0001]
 
     # run parameters
-    parameters["epochs"] = [1000]
+    parameters["epochs"] = [10000]
 
     return list(parameters.keys()), list(product(*parameters.values()))
 

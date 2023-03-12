@@ -7,10 +7,9 @@ from data_loader import load_datasets
 from model import NN
 
 
-class Trainer:
-    def __int__(self, config, job_id):
+class MLTrainer:
+    def __init__(self, config, job_id):
         self.job_id = job_id
-
         self.log_dir = config.log_dir
         self.project = config.project
         self.group = config.group
@@ -20,7 +19,7 @@ class Trainer:
         # dataset parameters
         self.data_path = config.data_path
         self.inp_mode = config.inp_mode
-        self.batch = config.batch
+        self.batch_size = config.batch_size
 
         # model parameters
         self.hidden_dim = config.hidden_dim
@@ -64,6 +63,11 @@ class Trainer:
 
         self.wandb_config = self._create_config()
 
+        self.wandb_run = wandb.init(project=self.project, notes=self.notes, group=self.group,
+                   tags=self.tags, config=self.wandb_config)
+        self.wandb_run_name = self.wandb_run.name
+        self.wandb_run_path = self.wandb_run.path
+
     def _create_model(self):
         model = NN(in_dim=self.in_dim, hidden_dim=self.hidden_dim, out_dim=self.out_dim,
                    n_layers=self.n_layer, act_fn=self.act_fn, mode=self.inp_mode)
@@ -73,7 +77,7 @@ class Trainer:
 
     def _create_config(self):
         config = {
-            "batch_size": self.batch,
+            "batch_size": self.batch_size,
             "lr": self.lr,
             "hidden_dim": self.hidden_dim,
             "n_layer": self.n_layer,
@@ -125,15 +129,9 @@ class Trainer:
             return error / len(data_loader)
 
     def run(self):
-
-        run = wandb.init(project=self.project, notes=self.notes, group=self.group,
-                   tags=self.tags, config=self.wandb_config)
-        self.wandb_run_name = run.name
-        self.wandb_run_path = run.path
-
-        run.summary["job_id"] = self.job_id
-        run.summary["data_path"] = self.data_path
-        run.summary["input_shape"] = self.train_dataloader.input_shape
+        self.wandb_run.summary["job_id"] = self.job_id
+        self.wandb_run.summary["data_path"] = self.data_path
+        self.wandb_run.summary["input_shape"] = self.train_dataloader.dataset.input_shape
 
         wandb.watch(models=self.model, criterion=self.torque_loss, log="all")
         print('**************************Training*******************************')
@@ -143,7 +141,7 @@ class Trainer:
 
             train_loss, train_error = self._train()
             val_error = self._validation(self.valid_dataloader)
-            self.scheduler.step(val_error)
+            # self.scheduler.step(val_error)
             if epoch % 20 == 0:
                 print('epoch {}/{}: \n\t train_loss: {}, \n\t train_error: {}, \n\t val_error: {}'.
                       format(epoch + 1, self.epochs, train_loss, train_error, val_error))
@@ -158,13 +156,13 @@ class Trainer:
 
             if val_error <= self.best_val_error:
                 self.best_val_error = val_error
-                torch.save(self.model.state_dict())
+                torch.save(self.model.state_dict(), "best_model.pth")
                 # wandb.save(best_model_path)
                 print('#################################################################')
                 print('best_val_error: {}, best_epoch: {}'.format(self.best_val_error, epoch))
                 print('#################################################################')
-                run.summary["best_epoch"] = epoch + 1
-                run.summary["best_val_error"] = self.best_val_error
+                self.wandb_run.summary["best_epoch"] = epoch + 1
+                self.wandb_run.summary["best_val_error"] = self.best_val_error
 
         # Testing
         print('**************************Testing*******************************')
@@ -172,5 +170,5 @@ class Trainer:
         print('Testing \n\t test error: {}'.
               format(self.test_error))
 
-        run.summary['test error'] = self.test_error
+        self.wandb_run.summary['test error'] = self.test_error
         wandb.finish()
