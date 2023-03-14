@@ -29,7 +29,7 @@ def get_parameters():
     # dataset parameters
     parameters["data_path"] = ["/home/marjanalbooyeh/logs/datasets/pps_n5/dataset"]
     parameters["inp_mode"] = ["stack"]
-    parameters["batch_size"] = [3]
+    parameters["batch_size"] = [256]
 
     # model parameters
     parameters["hidden_dim"] = [10]
