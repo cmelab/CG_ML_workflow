@@ -100,7 +100,11 @@ class MLTrainer:
             self.optimizer.zero_grad()
             energy_prediction, torque_prediction = self.model(feature_tensor)
             force_prediction = torch.autograd.grad(energy_prediction, feature_tensor, retain_graph=True,
-                                                   grad_outputs=torch.ones_like(energy_prediction))[0][:, :, 0, :3]
+                                                   grad_outputs=torch.ones_like(energy_prediction))[0]
+            if self.inp_mode == "stack":
+                force_prediction = force_prediction[:, :, 0, :3]
+            else:
+                force_prediction = force_prediction[:, :, :3]
             force_prediction = force_prediction.sum(dim=[-2])
             force_loss = self.force_loss(force_prediction, target_force)
             torque_loss = self.torque_loss(torque_prediction, target_torque)
@@ -127,7 +131,11 @@ class MLTrainer:
             feature_tensor.requires_grad = True
             energy_prediction, torque_prediction = self.model(feature_tensor)
             force_prediction = torch.autograd.grad(energy_prediction, feature_tensor, retain_graph=True,
-                                                   grad_outputs=torch.ones_like(energy_prediction))[0][:, :, 0, :3]
+                                                   grad_outputs=torch.ones_like(energy_prediction))[0]
+            if self.inp_mode == "stack":
+                force_prediction = force_prediction[:, :, 0, :3]
+            else:
+                force_prediction = force_prediction[:, :, :3]
             force_prediction = force_prediction.sum(dim=[-2])
             force_error = self.criteria(force_prediction, target_force).item()
             torque_error = self.criteria(torque_prediction, target_torque).item()

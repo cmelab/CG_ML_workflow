@@ -28,22 +28,22 @@ def get_parameters():
 
     # dataset parameters
     parameters["data_path"] = ["/home/marjanalbooyeh/logs/datasets/pps_n5/dataset"]
-    parameters["inp_mode"] = ["stack"]
+    parameters["inp_mode"] = ["append", "stack"]
     parameters["batch_size"] = [256]
 
     # model parameters
-    parameters["hidden_dim"] = [10]
-    parameters["n_layer"] = [2]
+    parameters["hidden_dim"] = [32]
+    parameters["n_layer"] = [2, 3]
     parameters["act_fn"] = ["Tanh"]
     parameters["dropout"] = [0.5]
 
     # optimizer parameters
     parameters["optim"] = ["SGD"]
-    parameters["lr"] = [0.01]
+    parameters["lr"] = [0.01, 0.1]
     parameters["decay"] = [0.0001]
 
     # run parameters
-    parameters["epochs"] = [10000]
+    parameters["epochs"] = [100]
 
     return list(parameters.keys()), list(product(*parameters.values()))
 
