@@ -58,8 +58,8 @@ class MLTrainer:
         if self.optim == "SGD":
             self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9, weight_decay=self.decay)
 
-        # self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, factor=0.9, patience=50,
-        #                                                             min_lr=0.01)
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, factor=0.9, patience=50,
+                                                                    min_lr=0.01)
 
         self.wandb_config = self._create_config()
 
@@ -69,7 +69,7 @@ class MLTrainer:
         self.wandb_run_path = self.wandb_run.path
 
     def _create_model(self):
-        model = NN(in_dim=self.in_dim, hidden_dim=self.hidden_dim, energy_out_dim=1,torque_out_dim=3,
+        model = NN(pos_in_dim=3, orient_in_dim=4, hidden_dim=self.hidden_dim, energy_out_dim=1,torque_out_dim=3,
                    n_layers=self.n_layer, act_fn=self.act_fn, mode=self.inp_mode)
         model.to(self.device)
 
@@ -94,17 +94,17 @@ class MLTrainer:
         error = 0.
         for i, (input_feature, target_force, target_torque) in enumerate(self.train_dataloader):
             feature_tensor = input_feature.to(self.device)
-            feature_tensor.requires_grad = True
+
+            pos = feature_tensor[:, :, 0, :3]
+            pos.requires_grad = True
+            orient = feature_tensor[:, :, 1, :]
             target_force = target_force.to(self.device)
             target_torque = target_torque.to(self.device)
             self.optimizer.zero_grad()
-            energy_prediction, torque_prediction = self.model(feature_tensor)
-            force_prediction = torch.autograd.grad(energy_prediction, feature_tensor, retain_graph=True,
+            energy_prediction, torque_prediction = self.model(pos, orient)
+            force_prediction = torch.autograd.grad(energy_prediction, pos, retain_graph=True,
                                                    grad_outputs=torch.ones_like(energy_prediction))[0]
-            if self.inp_mode == "stack":
-                force_prediction = force_prediction[:, :, 0, :3]
-            else:
-                force_prediction = force_prediction[:, :, :3]
+
             force_prediction = force_prediction.sum(dim=[-2])
             force_loss = self.force_loss(force_prediction, target_force)
             torque_loss = self.torque_loss(torque_prediction, target_torque)
@@ -126,16 +126,14 @@ class MLTrainer:
         error = 0.
         for i, (input_feature, target_force, target_torque) in enumerate(data_loader):
             feature_tensor = input_feature.to(self.device)
+            pos = feature_tensor[:, :, 0, :3]
+            pos.requires_grad = True
+            orient = feature_tensor[:, :, 1, :]
             target_force = target_force.to(self.device)
             target_torque = target_torque.to(self.device)
-            feature_tensor.requires_grad = True
-            energy_prediction, torque_prediction = self.model(feature_tensor)
-            force_prediction = torch.autograd.grad(energy_prediction, feature_tensor, retain_graph=True,
+            energy_prediction, torque_prediction = self.model(pos, orient)
+            force_prediction = torch.autograd.grad(energy_prediction, pos, retain_graph=True,
                                                    grad_outputs=torch.ones_like(energy_prediction))[0]
-            if self.inp_mode == "stack":
-                force_prediction = force_prediction[:, :, 0, :3]
-            else:
-                force_prediction = force_prediction[:, :, :3]
             force_prediction = force_prediction.sum(dim=[-2])
             force_error = self.criteria(force_prediction, target_force).item()
             torque_error = self.criteria(torque_prediction, target_torque).item()
