@@ -16,7 +16,8 @@ class CustomTrajDataset(Dataset):
         if mode == "append":
             self.input = torch.cat((positions, orientations), dim=-1)
         else:
-            orientations = orientations[:, :, :, :4]
+            padding = torch.zeros((positions.shape[0], positions.shape[1], 1))
+            positions = torch.cat([positions, padding], dim=-1)
             self.input = torch.stack((positions, orientations), dim=-2)
 
         self.in_dim = self.input.shape[-1]

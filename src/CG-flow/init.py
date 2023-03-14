@@ -20,19 +20,19 @@ def get_parameters():
     parameters = OrderedDict()
 
     # project parameters
-    parameters["log_dir"] = ["/home/marjan/Documents/ml_logs"]
+    parameters["log_dir"] = ["/home/marjanalbooyeh/logs/ML/"]
     parameters["project"] = ["NN_5_PPS"]
     parameters["group"] = ["5_pps"]
     parameters["notes"] = ["multi N=5, neighbors in separate row"]
     parameters["tags"] = [["PPS", "NN"]]
 
     # dataset parameters
-    parameters["data_path"] = ["/home/marjan/Documents/dataset/pps_rigid/2023-03-09-18:47:47/dataset"]
+    parameters["data_path"] = ["/home/marjanalbooyeh/logs/datasets/pps_n5/dataset"]
     parameters["inp_mode"] = ["stack"]
-    parameters["batch_size"] = [256]
+    parameters["batch_size"] = [3]
 
     # model parameters
-    parameters["hidden_dim"] = [32]
+    parameters["hidden_dim"] = [10]
     parameters["n_layer"] = [2]
     parameters["act_fn"] = ["Tanh"]
     parameters["dropout"] = [0.5]
