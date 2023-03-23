@@ -69,8 +69,8 @@ class MLTrainer:
         self.wandb_run_path = self.wandb_run.path
 
     def _create_model(self):
-        model = NN(in_dim=self.in_dim, hidden_dim=self.hidden_dim, energy_out_dim=1,torque_out_dim=3,
-                   n_layers=self.n_layer, act_fn=self.act_fn, mode=self.inp_mode)
+        model = NN(in_dim=self.in_dim, hidden_dim=self.hidden_dim, out_dim=3,
+                   n_layers=self.n_layer, act_fn=self.act_fn, mode=self.inp_mode, dropout=self.dropout)
         model.to(self.device)
 
         return model
@@ -94,18 +94,10 @@ class MLTrainer:
         error = 0.
         for i, (input_feature, target_force, target_torque) in enumerate(self.train_dataloader):
             feature_tensor = input_feature.to(self.device)
-            feature_tensor.requires_grad = True
             target_force = target_force.to(self.device)
             target_torque = target_torque.to(self.device)
             self.optimizer.zero_grad()
-            energy_prediction, torque_prediction = self.model(feature_tensor)
-            force_prediction = torch.autograd.grad(energy_prediction, feature_tensor, retain_graph=True, create_graph=True,
-                                                   grad_outputs=torch.ones_like(energy_prediction))[0]
-            if self.inp_mode == "stack":
-                force_prediction = force_prediction[:, :, 0, :3]
-            else:
-                force_prediction = force_prediction[:, :, :3]
-            force_prediction = force_prediction.sum(dim=[-2])
+            force_prediction, torque_prediction = self.model(feature_tensor)
             force_loss = self.force_loss(force_prediction, target_force)
             torque_loss = self.torque_loss(torque_prediction, target_torque)
             _loss = force_loss + torque_loss
@@ -122,26 +114,19 @@ class MLTrainer:
 
     def _validation(self, data_loader):
         self.model.eval()
-        # with torch.no_grad():
-        error = 0.
-        for i, (input_feature, target_force, target_torque) in enumerate(data_loader):
-            feature_tensor = input_feature.to(self.device)
-            target_force = target_force.to(self.device)
-            target_torque = target_torque.to(self.device)
-            feature_tensor.requires_grad = True
-            energy_prediction, torque_prediction = self.model(feature_tensor)
-            force_prediction = torch.autograd.grad(energy_prediction, feature_tensor, retain_graph=True,
-                                                   grad_outputs=torch.ones_like(energy_prediction))[0]
-            if self.inp_mode == "stack":
-                force_prediction = force_prediction[:, :, 0, :3]
-            else:
-                force_prediction = force_prediction[:, :, :3]
-            force_prediction = force_prediction.sum(dim=[-2])
-            force_error = self.criteria(force_prediction, target_force).item()
-            torque_error = self.criteria(torque_prediction, target_torque).item()
-            error += force_error + torque_error
+        with torch.no_grad():
+            error = 0.
+            for i, (input_feature, target_force, target_torque) in enumerate(data_loader):
+                feature_tensor = input_feature.to(self.device)
+                target_force = target_force.to(self.device)
+                target_torque = target_torque.to(self.device)
 
-        return error / len(data_loader)
+                force_prediction, torque_prediction = self.model(feature_tensor)
+                force_error = self.criteria(force_prediction, target_force).item()
+                torque_error = self.criteria(torque_prediction, target_torque).item()
+                error += force_error + torque_error
+
+            return error / len(data_loader)
 
     def run(self):
         self.wandb_run.summary["job_id"] = self.job_id
@@ -188,12 +173,3 @@ class MLTrainer:
         self.wandb_run.summary['test error'] = self.test_error
         wandb.finish()
 
-
-if __name__ == '__main__':
-    import signac
-    project = signac.get_project("CG-flow")
-    job = list(project.find_jobs())[0]
-    print(job.sp)
-    trainer_obj = MLTrainer(job.sp, job.id)
-    trainer_obj.run()
-    print('done')
