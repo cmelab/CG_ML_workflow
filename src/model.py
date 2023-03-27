@@ -2,9 +2,10 @@ import torch.nn as nn
 
 
 class NN(nn.Module):
-    def __init__(self, in_dim, hidden_dim, energy_out_dim, torque_out_dim, n_layers, act_fn="ReLU", mode="append"):
+    def __init__(self, in_dim,  hidden_dim, energy_out_dim, torque_out_dim, n_layers, act_fn="ReLU", mode="append", batch_dim=None):
         super(NN, self).__init__()
         self.in_dim = in_dim
+        self.batch_dim = batch_dim
         self.hidden_dim = hidden_dim
         self.energy_out_dim = energy_out_dim
         self.torque_out_dim = torque_out_dim
@@ -23,8 +24,10 @@ class NN(nn.Module):
         layers = [nn.Linear(self.in_dim, self.hidden_dim), self._get_act_fn()]
         for i in range(self.n_layers - 1):
             layers.append(nn.Linear(self.hidden_dim, self.hidden_dim))
-            layers.append(nn.Dropout(p=0.5))
+            if self.batch_dim:
+                layers.append(nn.BatchNorm1d(self.batch_dim))
             layers.append(self._get_act_fn())
+            layers.append(nn.Dropout(p=0.5))
         layers.append(nn.Linear(self.hidden_dim, out_dim))
         return layers
 

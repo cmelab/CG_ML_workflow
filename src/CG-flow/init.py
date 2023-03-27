@@ -21,25 +21,26 @@ def get_parameters():
 
     # project parameters
     parameters["log_dir"] = ["/home/marjanalbooyeh/logs/ML/"]
-    parameters["project"] = ["NN_5_PPS"]
-    parameters["group"] = ["5_pps"]
-    parameters["notes"] = ["multi N=5, neighbors in separate row"]
+    parameters["project"] = ["PPS_synth_March22"]
+    parameters["group"] = ["stack"]
+    parameters["notes"] = ["synthesized, neighbors in separate row"]
     parameters["tags"] = [["PPS", "NN"]]
 
     # dataset parameters
-    parameters["data_path"] = ["/home/marjanalbooyeh/logs/datasets/pps_n5/dataset"]
-    parameters["inp_mode"] = ["append", "stack"]
-    parameters["batch_size"] = [256]
+    parameters["data_path"] = ["/home/marjanalbooyeh/logs/pps_two_synthesized/2023-03-20-13:55:49/dataset/"]
+    parameters["inp_mode"] = ["stack"]
+    parameters["batch_size"] = [32]
+    parameters["batch_norm"] = [False]
 
     # model parameters
-    parameters["hidden_dim"] = [32]
-    parameters["n_layer"] = [2, 3]
-    parameters["act_fn"] = ["Tanh"]
+    parameters["hidden_dim"] = [16]
+    parameters["n_layer"] = [2]
+    parameters["act_fn"] = ["Tanh", "ReLU"]
     parameters["dropout"] = [0.5]
 
     # optimizer parameters
     parameters["optim"] = ["SGD"]
-    parameters["lr"] = [0.01, 0.1]
+    parameters["lr"] = [0.1]
     parameters["decay"] = [0.0001]
 
     # run parameters

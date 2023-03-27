@@ -20,6 +20,7 @@ class MLTrainer:
         self.data_path = config.data_path
         self.inp_mode = config.inp_mode
         self.batch_size = config.batch_size
+        self.batch_norm = config.batch_norm
 
         # model parameters
         self.hidden_dim = config.hidden_dim
@@ -44,7 +45,10 @@ class MLTrainer:
             load_datasets(config.data_path, config.batch_size, inp_mode=config.inp_mode)
 
         self.in_dim = self.train_dataloader.dataset.in_dim
-
+        self.batch_dim = None
+        if self.batch_norm:
+            self.batch_dim = self.train_dataloader.dataset.batch_dim
+        print('batch_dim: ', self.batch_dim)
         # create model
         self.model = self._create_model()
 
@@ -70,7 +74,7 @@ class MLTrainer:
 
     def _create_model(self):
         model = NN(in_dim=self.in_dim, hidden_dim=self.hidden_dim, energy_out_dim=1,torque_out_dim=3,
-                   n_layers=self.n_layer, act_fn=self.act_fn, mode=self.inp_mode)
+                   n_layers=self.n_layer, act_fn=self.act_fn, mode=self.inp_mode, batch_dim=self.batch_dim)
         model.to(self.device)
 
         return model
@@ -160,6 +164,10 @@ class MLTrainer:
             if epoch % 10 == 0:
                 print('epoch {}/{}: \n\t train_loss: {}, \n\t train_error: {}, \n\t val_error: {}'.
                       format(epoch + 1, self.epochs, train_loss, train_error, val_error))
+                
+                for name, param in self.model.named_parameters():
+                    if param.requires_grad:
+                        print(name, param.data)
 
             wandb.log({'train_loss': train_loss,
                        'train_error': train_error,
