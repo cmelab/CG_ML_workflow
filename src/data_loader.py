@@ -14,17 +14,18 @@ class CustomTrajDataset(Dataset):
         torques = torch.from_numpy(np.array(list(traj_df['net_torque']))).type(torch.FloatTensor)
 
         if mode == "append":
-            self.input = torch.cat((positions, orientations), dim=-1)
+            self.inputs = torch.cat((positions, orientations), dim=-1)
         else:
             padding = torch.zeros((positions.shape[0], positions.shape[1], 1))
             positions = torch.cat([positions, padding], dim=-1)
-            self.input = torch.stack((positions, orientations), dim=-2)
+            self.inputs = torch.stack((positions, orientations), dim=-2)
 
-        self.in_dim = self.input.shape[-1]
+        self.in_dim = self.inputs.shape[-1]
+        self.batch_dim = self.inputs.shape[-2]
         self.forces = forces
         self.torques = torques
 
-        self.input_shape = self.input.shape
+        self.input_shape = self.inputs.shape
 
     def __len__(self):
         return len(self.input)
