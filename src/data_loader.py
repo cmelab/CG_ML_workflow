@@ -28,10 +28,10 @@ class CustomTrajDataset(Dataset):
         self.input_shape = self.inputs.shape
 
     def __len__(self):
-        return len(self.input)
+        return len(self.inputs)
 
     def __getitem__(self, i):
-        return self.input[i], self.forces[i], self.torques[i]
+        return self.inputs[i], self.forces[i], self.torques[i]
 
 
 def _get_data_loader(dataset, batch_size, shuffle=True):
