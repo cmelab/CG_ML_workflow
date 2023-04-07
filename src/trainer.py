@@ -41,7 +41,7 @@ class MLTrainer:
 
         # create data loaders
         self.train_dataloader, self.valid_dataloader, self.test_dataloader = \
-            load_datasets(config.data_path, config.batch_size, inp_mode=config.inp_mode)
+            load_datasets(config.data_path, config.batch_size, inp_mode=config.inp_mode, normalize=config.pos_norm)
 
         self.in_dim = self.train_dataloader.dataset.in_dim
         self.batch_dim = None
@@ -177,7 +177,7 @@ class MLTrainer:
             if epoch % 10 == 0:
                 print('epoch {}/{}: \n\t train_loss: {}, \n\t train_error: {}, \n\t val_error: {}'.
                       format(epoch + 1, self.epochs, train_loss, train_error, val_error))
-                
+
             wandb.log({'train_loss': train_loss,
                        'train_error': train_error,
                        'valid error': val_error,
