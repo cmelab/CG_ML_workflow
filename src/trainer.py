@@ -23,11 +23,9 @@ class MLTrainer:
         # model parameters
         self.model_type = config.model_type
         self.hidden_dim = config.hidden_dim
-        self.out_dim = config.out_dim
         self.n_layer = config.n_layer
         self.act_fn = config.act_fn
         self.dropout = config.dropout
-        self.out_dim = config.out_dim
 
         # optimizer parameters
         self.optim = config.optim
@@ -130,7 +128,7 @@ class MLTrainer:
 
         return train_loss, train_error
 
-    def _validation(self, data_loader):
+    def _validation(self, data_loader, print_output=False):
         self.model.eval()
         # with torch.no_grad():
         error = 0.
@@ -151,7 +149,10 @@ class MLTrainer:
                 model_prediction = prediction
                 target = target_torque.to(self.device)
             error += self.criteria(model_prediction, target).item()
-
+            if print_output and i % 10 == 0:
+                print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+                print("prediction: ", model_prediction[0:5])
+                print("target: ", target[0:5])
         return error / len(data_loader)
 
     def run(self):
@@ -195,7 +196,7 @@ class MLTrainer:
 
         # Testing
         print('**************************Testing*******************************')
-        self.test_error = self._validation(self.test_dataloader)
+        self.test_error = self._validation(self.test_dataloader, print_output=True)
         print('Testing \n\t test error: {}'.
               format(self.test_error))
 
