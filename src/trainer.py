@@ -19,6 +19,7 @@ class MLTrainer:
         self.inp_mode = config.inp_mode
         self.batch_size = config.batch_size
         self.batch_norm = config.batch_norm
+        self.pos_norm = config.pos_norm
 
         # model parameters
         self.model_type = config.model_type
@@ -46,6 +47,8 @@ class MLTrainer:
         self.batch_dim = None
         if self.batch_norm:
             self.batch_dim = self.train_dataloader.dataset.batch_dim
+
+        self.pos_max = self.train_dataloader.dataset.position_max()
         print('batch_dim: ', self.batch_dim)
         # create model
         self.model = self._create_model()
@@ -91,7 +94,8 @@ class MLTrainer:
             "act_fn": self.act_fn,
             "inp_mode": self.inp_mode,
             "batch_norm": self.batch_norm,
-            "model_type": self.model_type
+            "model_type": self.model_type,
+            "pos_norm": self.pos_norm
         }
         return config
 
@@ -159,6 +163,7 @@ class MLTrainer:
         self.wandb_run.summary["job_id"] = self.job_id
         self.wandb_run.summary["data_path"] = self.data_path
         self.wandb_run.summary["input_shape"] = self.train_dataloader.dataset.input_shape
+        self.wandb_run.summary["pos_norm"] = self.pos_max
 
         wandb.watch(models=self.model, criterion=self.loss, log="all")
         print('**************************Training*******************************')
@@ -173,10 +178,6 @@ class MLTrainer:
                 print('epoch {}/{}: \n\t train_loss: {}, \n\t train_error: {}, \n\t val_error: {}'.
                       format(epoch + 1, self.epochs, train_loss, train_error, val_error))
                 
-                for name, param in self.model.named_parameters():
-                    if param.requires_grad:
-                        print(name, param.data)
-
             wandb.log({'train_loss': train_loss,
                        'train_error': train_error,
                        'valid error': val_error,
