@@ -20,22 +20,22 @@ def get_parameters():
     parameters = OrderedDict()
 
     # project parameters
-    parameters["log_dir"] = ["/home/marjanalbooyeh/logs/ML/"]
-    parameters["project"] = ["PPS_synth_March22"]
-    parameters["group"] = ["stack"]
-    parameters["notes"] = ["synthesized, neighbors in separate row"]
-    parameters["tags"] = [["PPS", "NN"]]
+    parameters["project"] = ["syn-force-torque"]
+    parameters["group"] = ["torque"]
+    parameters["notes"] = ["synthesized, neighbors in separate row, only torque"]
+    parameters["tags"] = [["PPS", "NN", "torque", "fixedNN"]]
 
     # dataset parameters
     parameters["data_path"] = ["/home/marjanalbooyeh/logs/pps_two_synthesized/2023-03-20-13:55:49/dataset/"]
-    parameters["inp_mode"] = ["stack"]
-    parameters["batch_size"] = [32]
+    parameters["inp_mode"] = ["append"]
+    parameters["batch_size"] = [128]
     parameters["batch_norm"] = [False]
 
     # model parameters
-    parameters["hidden_dim"] = [16]
+    parameters["model_type"] = ["fixed"]
+    parameters["hidden_dim"] = [32]
     parameters["n_layer"] = [2]
-    parameters["act_fn"] = ["Tanh", "ReLU"]
+    parameters["act_fn"] = ["Tanh"]
     parameters["dropout"] = [0.5]
 
     # optimizer parameters
@@ -44,7 +44,7 @@ def get_parameters():
     parameters["decay"] = [0.0001]
 
     # run parameters
-    parameters["epochs"] = [100]
+    parameters["epochs"] = [10000]
 
     return list(parameters.keys()), list(product(*parameters.values()))
 
@@ -53,7 +53,7 @@ custom_job_doc = {}  # add keys and values for each job document created
 
 
 def main(root=None):
-    project = signac.init_project("ML_CG", root=root)  # Set the signac project name
+    project = signac.init_project("ML_Torque", root=root)  # Set the signac project name
     param_names, param_combinations = get_parameters()
     # Create jobs
     for params in param_combinations:
