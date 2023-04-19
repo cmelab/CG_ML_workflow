@@ -7,7 +7,7 @@ from model import NN, NNGrow
 
 
 class MLTrainer:
-    def __init__(self, config, job_id):
+    def __init__(self, config, job_id, checkpoint=False):
         self.job_id = job_id
         self.project = config.project
         self.group = config.group
@@ -36,6 +36,11 @@ class MLTrainer:
         # run parameters
         self.epochs = config.epochs
 
+        # checkpoint load
+        self.checkpoint = None
+        if checkpoint:
+            self.checkpoint = torch.load("checkpoint.pth")
+
         # select device (GPU or CPU)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -62,15 +67,11 @@ class MLTrainer:
         if self.optim == "SGD":
             self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9, weight_decay=self.decay)
 
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, factor=0.9, patience=200, threshold=0.3,
-                                                                     min_lr=0.001, cooldown=1000)
+        if self.checkpoint:
+            self.optimizer.load_state_dict(self.checkpoint["optimizer"])
 
-        self.wandb_config = self._create_config()
-
-        self.wandb_run = wandb.init(project=self.project, notes=self.notes, group=self.group,
-                   tags=self.tags, config=self.wandb_config)
-        self.wandb_run_name = self.wandb_run.name
-        self.wandb_run_path = self.wandb_run.path
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, factor=0.95, patience=2000,
+                                                                    min_lr=0.01, cooldown=10000)
 
     def _create_model(self):
         if self.model_type == "fixed":
@@ -79,6 +80,9 @@ class MLTrainer:
         else:
             model = NNGrow(in_dim=self.in_dim, hidden_dim=self.hidden_dim, out_dim=3,
                    n_layers=self.n_layer, act_fn=self.act_fn, mode=self.inp_mode, batch_dim=self.batch_dim)
+
+        if self.checkpoint:
+            model.load_state_dict(self.checkpoint["model"])
         model.to(self.device)
 
         return model
@@ -98,6 +102,20 @@ class MLTrainer:
             "pos_norm": self.pos_norm
         }
         return config
+
+    def _initiate_wandb_run(self):
+        self.wandb_config = self._create_config()
+
+        self.wandb_run = wandb.init(project=self.project, notes=self.notes, group=self.group,
+                   tags=self.tags, config=self.wandb_config)
+        self.wandb_run_name = self.wandb_run.name
+        self.wandb_run_path = self.wandb_run.path
+        self.wandb_run.summary["job_id"] = self.job_id
+        self.wandb_run.summary["data_path"] = self.data_path
+        self.wandb_run.summary["input_shape"] = self.train_dataloader.dataset.input_shape
+        self.wandb_run.summary["pos_norm"] = self.pos_max
+        if self.checkpoint:
+            self.wandb_run.summary["last_run"] = self.checkpoint["last_run"]
 
     def _train(self):
         self.model.train()
@@ -160,10 +178,6 @@ class MLTrainer:
         return error / len(data_loader)
 
     def run(self):
-        self.wandb_run.summary["job_id"] = self.job_id
-        self.wandb_run.summary["data_path"] = self.data_path
-        self.wandb_run.summary["input_shape"] = self.train_dataloader.dataset.input_shape
-        self.wandb_run.summary["pos_norm"] = self.pos_max
 
         wandb.watch(models=self.model, criterion=self.loss, log="all")
         print('**************************Training*******************************')
@@ -173,7 +187,8 @@ class MLTrainer:
 
             train_loss, train_error = self._train()
             val_error = self._validation(self.valid_dataloader)
-            self.scheduler.step(val_error)
+            if not self.checkpoint and self.optim == "SGD":
+                self.scheduler.step(val_error)
             if epoch % 10 == 0:
                 print('epoch {}/{}: \n\t train_loss: {}, \n\t train_error: {}, \n\t val_error: {}'.
                       format(epoch + 1, self.epochs, train_loss, train_error, val_error))
@@ -195,6 +210,12 @@ class MLTrainer:
                 self.wandb_run.summary["best_epoch"] = epoch + 1
                 self.wandb_run.summary["best_val_error"] = self.best_val_error
 
+        checkpoint = {
+            'last_run': self.wandb_run_name,
+            'model': self.model.state_dict(),
+            'optimizer': self.optimizer.state_dict()
+        }
+        torch.save(checkpoint, 'checkpoint.pth')
         # Testing
         print('**************************Testing*******************************')
         self.test_error = self._validation(self.test_dataloader, print_output=True)

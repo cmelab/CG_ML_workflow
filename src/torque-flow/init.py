@@ -62,7 +62,11 @@ def main(root=None):
         parent_job = project.open_job(parent_statepoint)
         parent_job.init()
         parent_job.doc.setdefault("done", False)
-
+        parent_job.doc.setdefault("")
+        parent_job.doc.setdefault("wandb_run_name", [])
+        parent_job.doc.setdefault("wandb_run_path", [])
+        parent_job.doc.setdefault("best_val_error", [])
+        parent_job.doc.setdefault("test_error", [])
     project.write_statepoints()
     return project
 
