@@ -59,8 +59,8 @@ class MLTrainer:
         if self.optim == "SGD":
             self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9, weight_decay=self.decay)
 
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, factor=0.9, patience=200, threshold=0.3,
-                                                                     min_lr=0.001, cooldown=1000)
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, factor=0.98, patience=500,
+                                                                     min_lr=0.01, cooldown=1000)
 
         self.wandb_config = self._create_config()
 
@@ -107,7 +107,8 @@ class MLTrainer:
             prediction = self.model(feature_tensor)
             if self.group == "force":
                 model_prediction = torch.autograd.grad(prediction, feature_tensor, retain_graph=True, create_graph=True,
-                                                       grad_outputs=torch.ones_like(prediction))[0]
+                                                       grad_outputs=torch.ones_like(prediction))[0] * (-1)
+               
                 if self.inp_mode == "stack":
                     model_prediction = model_prediction[:, :, 0, :3]
                 else:
@@ -123,6 +124,11 @@ class MLTrainer:
             train_loss += _loss.item()
             _loss.backward()
             self.optimizer.step()
+            if i % 100 == 0:
+                print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+                print("prediction: ", model_prediction[0:5])
+                print("target: ", target[0:5])
+                print("loss : ", train_loss)
         train_loss = train_loss / len(self.train_dataloader)
         train_error = error / len(self.train_dataloader)
 
@@ -168,8 +174,9 @@ class MLTrainer:
 
             train_loss, train_error = self._train()
             val_error = self._validation(self.valid_dataloader)
-            self.scheduler.step(val_error)
-            if epoch % 10 == 0:
+#             if self.optim == "SGD":
+#                 self.scheduler.step(val_error)
+            if epoch % 100 == 0:
                 print('epoch {}/{}: \n\t train_loss: {}, \n\t train_error: {}, \n\t val_error: {}'.
                       format(epoch + 1, self.epochs, train_loss, train_error, val_error))
                 
@@ -187,6 +194,12 @@ class MLTrainer:
 
             if val_error <= self.best_val_error:
                 self.best_val_error = val_error
+                checkpoint = { 
+                    'epoch': epoch,
+                    'model': self.model.state_dict(),
+                    'optimizer': self.optimizer.state_dict()
+                }
+                torch.save(checkpoint, 'checkpoint.pth')
                 torch.save(self.model.state_dict(), "best_model.pth")
                 print('#################################################################')
                 print('best_val_error: {}, best_epoch: {}'.format(self.best_val_error, epoch))
@@ -202,4 +215,11 @@ class MLTrainer:
 
         self.wandb_run.summary['test error'] = self.test_error
         wandb.finish()
+        checkpoint = { 
+                    'epoch': epoch,
+                    'model': self.model.state_dict(),
+                    'optimizer': self.optimizer.state_dict()
+                }
+        torch.save(checkpoint, 'last_checkpoint.pth')
+        
 
