@@ -30,6 +30,7 @@ def get_parameters():
     parameters["inp_mode"] = ["append"]
     parameters["batch_size"] = [128]
     parameters["batch_norm"] = [False]
+    parameters["pos_norm"] = [False]
 
     # model parameters
     parameters["model_type"] = ["fixed"]

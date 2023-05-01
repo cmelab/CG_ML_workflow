@@ -85,14 +85,14 @@ def sample(job):
         print("----------------------")
         print("Creating the Trainer class...")
         print("----------------------")
-        trainer_obj = MLTrainer(job.sp, job.id)
-        job.doc["wandb_run_name"] = trainer_obj.wandb_run_name
-        job.doc["wandb_run_path"] = trainer_obj.wandb_run_path
+        trainer_obj = MLTrainer(job.sp, job.id, checkpoint=job.isfile("checkpoint.pth"))
+        job.doc["wandb_run_name"].append(trainer_obj.wandb_run_name)
+        job.doc["wandb_run_path"].append(trainer_obj.wandb_run_path)
         print("Training...")
         print("----------------------")
         trainer_obj.run()
-        job.doc["best_val_error"] = trainer_obj.best_val_error
-        job.doc["test_error"] = trainer_obj.test_error
+        job.doc["best_val_error"].append(trainer_obj.best_val_error)
+        job.doc["test_error"].append(trainer_obj.test_error)
         job.doc["done"] = True
         print("-----------------------------")
         print("Training finished")
