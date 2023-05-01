@@ -173,7 +173,7 @@ class MLTrainer:
             prediction = self.model(feature_tensor)
             if self.group == "force":
                 model_prediction = torch.autograd.grad(prediction, feature_tensor, retain_graph=True, create_graph=True,
-                                                       grad_outputs=torch.ones_like(prediction))[0]
+                                                       grad_outputs=torch.ones_like(prediction))[0] * (-1)
                 if self.inp_mode == "stack":
                     model_prediction = model_prediction[:, :, 0, :3]
                 else:
