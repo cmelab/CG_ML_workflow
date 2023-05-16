@@ -37,9 +37,9 @@ class MLTrainer:
         self.epochs = config.epochs
 
         # checkpoint load
-        self.checkpoint = None
-        if checkpoint:
-            self.checkpoint = torch.load("checkpoint.pth")
+#         self.checkpoint = None
+#         if checkpoint:
+#             self.checkpoint = torch.load("checkpoint.pth")
 
         # select device (GPU or CPU)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -72,6 +72,7 @@ class MLTrainer:
                                                                      min_lr=0.01, cooldown=1000)
 
         self.wandb_config = self._create_config()
+        self._initiate_wandb_run()
 
 #         if self.checkpoint:
 #             self.optimizer.load_state_dict(self.checkpoint["optimizer"])
@@ -88,8 +89,8 @@ class MLTrainer:
             model = NNGrow(in_dim=self.in_dim, hidden_dim=self.hidden_dim, out_dim=3,
                    n_layers=self.n_layer, act_fn=self.act_fn, mode=self.inp_mode, batch_dim=self.batch_dim)
 
-        if self.checkpoint:
-            model.load_state_dict(self.checkpoint["model"])
+#         if self.checkpoint:
+#             model.load_state_dict(self.checkpoint["model"])
         model.to(self.device)
 
         return model
@@ -121,8 +122,8 @@ class MLTrainer:
         self.wandb_run.summary["data_path"] = self.data_path
         self.wandb_run.summary["input_shape"] = self.train_dataloader.dataset.input_shape
         self.wandb_run.summary["pos_norm"] = self.pos_max
-        if self.checkpoint:
-            self.wandb_run.summary["last_run"] = self.checkpoint["last_run"]
+        #if self.checkpoint:
+        #    self.wandb_run.summary["last_run"] = self.checkpoint["last_run"]
 
     def _train(self):
         self.model.train()

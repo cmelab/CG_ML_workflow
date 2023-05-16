@@ -3,7 +3,7 @@ import torch.nn as nn
 
 class NN(nn.Module):
     def __init__(self, in_dim,  hidden_dim, out_dim, n_layers, act_fn="ReLU",
-                 mode="append", batch_dim=None, dropout=0.5):
+                 mode="append", batch_dim=None, dropout=0.3):
         super(NN, self).__init__()
         self.in_dim = in_dim
         self.batch_dim = batch_dim
@@ -27,7 +27,7 @@ class NN(nn.Module):
             # if self.batch_dim:
             #     layers.append(nn.BatchNorm1d(self.batch_dim))
             layers.append(self._get_act_fn())
-            # layers.append(nn.Dropout(p=self.dropout))
+            layers.append(nn.Dropout(p=self.dropout))
         layers.append(nn.Linear(self.hidden_dim, out_dim))
         return layers
 
